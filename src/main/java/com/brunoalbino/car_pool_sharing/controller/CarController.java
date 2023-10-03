@@ -1,6 +1,7 @@
 package com.brunoalbino.car_pool_sharing.controller;
 
 import com.brunoalbino.car_pool_sharing.model.Car;
+import com.brunoalbino.car_pool_sharing.model.Dates_Wrapper;
 import com.brunoalbino.car_pool_sharing.repository.CarRepository;
 import jakarta.persistence.EntityManager;
 import org.springframework.data.jpa.repository.Query;
@@ -10,6 +11,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.sql.Timestamp;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 
 @RestController
@@ -36,7 +41,7 @@ public class CarController {
         return ResponseEntity.ok(carRepository.save(car));
     }
 
-    @PutMapping("/inactivatecar")
+    @GetMapping("/inactivatecar")
     public ResponseEntity inactivateCar(@RequestParam Integer id){
         if (id > 0){
            Car car = carRepository.findById(id).get();
@@ -50,7 +55,7 @@ public class CarController {
             return new ResponseEntity<>("ID of car can't be less than Zero", HttpStatus.BAD_REQUEST);
         }
     }
-    @PutMapping("/activatecar")
+    @GetMapping("/activatecar")
     public ResponseEntity activateCar(@RequestParam Integer id){
         if (id > 0){
             Car car = carRepository.findById(id).get();
@@ -66,10 +71,24 @@ public class CarController {
     }
 
     @GetMapping("/availablecars")
-    public ResponseEntity getAvailableCars(@RequestParam java.sql.Timestamp pickcupDate, @RequestParam java.sql.Timestamp dropOffDate){
+    public ResponseEntity getAvailableCars(@RequestBody Dates_Wrapper dates_wrapper){
    // public ResponseEntity getAvailableCars(@RequestParam java.sql.Timestamp pickcupDate,@RequestParam java.sql.Timestamp drop_offDate){
 
+        SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy HH:mm");
+
+        java.sql.Timestamp timestamp_pickcupDate = null;
+        java.sql.Timestamp timestamp_dropOffDate = null;
+        Date date = null;
+        try {
+            date = dateFormat.parse(dates_wrapper.getPickup_date());
+            timestamp_pickcupDate = new Timestamp(date.getTime());
+            date = dateFormat.parse(dates_wrapper.getDrop_off_date());
+            timestamp_dropOffDate = new Timestamp(date.getTime());
+        } catch (ParseException e) {
+            throw new RuntimeException(e);
+        }
+
        // return ResponseEntity.ok(carRepository.findAvailableCars(pickcupDate, dropOffDate));
-        return ResponseEntity.ok("Recebido a seguinte data de pickup: " + pickcupDate + " Data de dropOff: "+ dropOffDate);
+        return ResponseEntity.ok("Recebido a seguinte data de pickup: " + timestamp_pickcupDate + " Data de dropOff: "+ timestamp_dropOffDate);
     }
 }
