@@ -1,8 +1,6 @@
 package car_pool_sharing_client;
 
-import car_pool_sharing_client.Models.Car;
-import car_pool_sharing_client.Models.Dates_Wrapper;
-import car_pool_sharing_client.Models.EngineType;
+import car_pool_sharing_client.Models.*;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpHeaders;
@@ -24,6 +22,7 @@ import java.util.Scanner;
 
 public class CarPoolApp {
 
+    private Scanner scanner;
     private boolean in_execution;
     private final String baseUrl = "http://localhost:8080/";
     private final String endpoint_add_car = "/car";
@@ -31,6 +30,15 @@ public class CarPoolApp {
     private final String endpoint_get_car_details = "/car_details";
     private final String endpoint_remove_car = "/inactivatecar";
     private final String endpoint_available_cars = "/availablecars";
+    private final String endpoint_get_drivers = "/driver";
+    private final String endpoint_reserve_car = "/reservation";
+    private final String endpoint_add_driver = "/driver";
+    private final String endpoint_reservation_history = "/reservationHistory";
+
+
+    public CarPoolApp(){
+        scanner = new Scanner(System.in);
+    }
 
     public void ShowMenu(){
         System.out.println("          Car Pool Managmente Tool        \n");
@@ -41,6 +49,7 @@ public class CarPoolApp {
         System.out.println("(4) Remove Car");
         System.out.println("(5) Reserve Car");
         System.out.println("(6) Consult Reserve History");
+        System.out.println("(7) Add a new driver");
         System.out.println("(0) Exit");
     }
 
@@ -61,7 +70,9 @@ public class CarPoolApp {
                     AddCar();
                     break;
                 case 2: //List cars
-                    AvailableCars();
+                    String pickupDate = getDatesFromUser("Pickup date?");
+                    String dropOffDate = getDatesFromUser("Dropoff date?");
+                    getAvailableCars(pickupDate, dropOffDate);
                     break;
                 case 3: // Consult car details
                     //System.out.println("Consult car details selected");
@@ -72,12 +83,15 @@ public class CarPoolApp {
                     RemoveCar();
                     break;
                 case 5: // Reserve car
-                    System.out.println("Reserve a car selected");
+                    //System.out.println("Reserve a car selected");
                     ReserveCar();
                     break;
                 case 6: //Consult reserve history
                     System.out.println("Consult reserve history selected");
                     ReserveHistory();
+                    break;
+                case 7: //Add new driver
+                    addDriver();
                     break;
                 default:
                     System.out.println("Invalid option selected");
@@ -218,46 +232,114 @@ public class CarPoolApp {
             System.out.println("Invalid ID!");
         }
     }
-
-    public void AvailableCars(){
+    public String getDatesFromUser(String userQuestion){
         Scanner scanner = new Scanner(System.in);
+        String date;
+        System.out.println(userQuestion + " (format: dd/MM/yyyy HH:mm)");
 
-        String pickupDate = null;
-        String dropOffDate = null;
-        System.out.println("Pickup date: (format: MM/dd/yyyy HH:mm)");
         System.out.print(">");
-        pickupDate = scanner.nextLine();
+        date = scanner.nextLine();
+        date= date.replace(' ', 'T');
 
-        System.out.println("Drop off date: (format: MM/dd/yyyy HH:mm)");
-        System.out.print(">");
-        dropOffDate = scanner.nextLine();
+        return date;
+    }
+   public void getAvailableCars(String pickupDate, String dropOffDate){
+       RestTemplate restTemplate = new RestTemplate();
 
+       UriComponentsBuilder builder = UriComponentsBuilder
+               .fromHttpUrl(baseUrl + endpoint_available_cars)
+               .queryParam("pickcupDate", pickupDate)
+               .queryParam("drop_offDate", dropOffDate);
+
+       // Make the GET request and retrieve the response
+       ResponseEntity<Car []> response = restTemplate.getForEntity(builder.toUriString(), Car[].class);
+
+       // Handle the response as needed
+       if (response.getStatusCode().is2xxSuccessful()) {
+           Car[] responseBody = response.getBody();
+
+           assert responseBody != null;
+           for (Car car : responseBody){
+               System.out.println(car.getDetails());
+           }
+
+       } else {
+           System.err.println("API request failed with status code: " + response.getStatusCodeValue());
+       }
+   }
+
+    public void ReserveCar(){
+
+        ReservationDTO reservationDTO= new ReservationDTO();
+
+        System.out.println("Reserve Car");
+        ListDrivers();
+
+        reservationDTO.setDriver_id(getIntFromUser("Driver id?"));
+
+        String pickupDate = getDatesFromUser("Pickup date?");
+        String dropOffDate = getDatesFromUser("Dropoff date?");
+        System.out.println("Available cars");
+        getAvailableCars(pickupDate, dropOffDate);
+
+        reservationDTO.setCar_id(getIntFromUser("Car id?"));
+        reservationDTO.setPickupDate(formatDate(pickupDate));
+        reservationDTO.setDropOffDate(formatDate(dropOffDate));
+
+        //Request
         RestTemplate restTemplate = new RestTemplate();
 
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<ReservationDTO> requestEntity = new HttpEntity<>(reservationDTO, headers);
+
         UriComponentsBuilder builder = UriComponentsBuilder
-                .fromHttpUrl(baseUrl + endpoint_available_cars);
+                .fromHttpUrl(baseUrl + endpoint_reserve_car);
 
-        Dates_Wrapper dates_wrapper = new Dates_Wrapper(pickupDate, dropOffDate);
-
-        // Make the GET request and retrieve the response
-        ResponseEntity<String> response = restTemplate.getForEntity(builder.toUriString(), String.class);
+        ResponseEntity<Reservation> response = restTemplate.postForEntity(builder.toUriString(), requestEntity, Reservation.class);
 
         // Handle the response as needed
         if (response.getStatusCode().is2xxSuccessful()) {
-            String responseBody = response.getBody();
-            //Car[] responseBody = response.getBody();
-            System.out.println("Recebido: " + responseBody);
+            Reservation responseBody = response.getBody();
+            System.out.println("API Response: " + responseBody);
         } else {
             System.err.println("API request failed with status code: " + response.getStatusCodeValue());
         }
 
     }
 
-    public void ReserveCar(){
-
-    }
-
     public void ReserveHistory(){
+        System.out.println("Reserve History");
+        String starDate = getDatesFromUser("Start date?");
+        String endDate = getDatesFromUser("End date?");
+
+        ListAllCars();
+        int car_id = getIntFromUser("Car id?");
+
+        //Request
+        RestTemplate restTemplate = new RestTemplate();
+        UriComponentsBuilder builder = UriComponentsBuilder
+                .fromHttpUrl(baseUrl + endpoint_reservation_history)
+                .queryParam("StartDate", starDate)
+                .queryParam("EndDate", endDate)
+                .queryParam("car_id", car_id);
+
+        // Make the GET request and retrieve the response
+        ResponseEntity<Reservation []> response = restTemplate.getForEntity(builder.toUriString(), Reservation[].class);
+
+        // Handle the response as needed
+        if (response.getStatusCode().is2xxSuccessful()) {
+            Reservation [] responseBody = response.getBody();
+
+            assert responseBody != null;
+            for (Reservation reservation : responseBody){
+                System.out.println(reservation.toString());
+            }
+
+        } else {
+            System.err.println("API request failed with status code: " + response.getStatusCodeValue());
+        }
 
     }
 
@@ -282,4 +364,92 @@ public class CarPoolApp {
             System.err.println("API request failed with status code: " + response.getStatusCodeValue());
         }
     }
+
+    public void addDriver(){
+
+        System.out.println("Add new driver");
+        Driver driver = new Driver();
+
+        driver.setName(getStringFromUser("Driver name?"));
+        driver.setContact(getStringFromUser("Driver contact?"));
+        driver.setLicenseNumber(getStringFromUser("Driver licenseNumber?"));
+        driver.setDriver_Id(null);
+
+        //Request
+        RestTemplate restTemplate = new RestTemplate();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<Driver> requestEntity = new HttpEntity<>(driver, headers);
+
+        UriComponentsBuilder builder = UriComponentsBuilder
+                .fromHttpUrl(baseUrl + endpoint_add_driver);
+
+        ResponseEntity<Driver> response = restTemplate.postForEntity(builder.toUriString(), requestEntity, Driver.class);
+
+        // Handle the response as needed
+        if (response.getStatusCode().is2xxSuccessful()) {
+            Driver responseBody = response.getBody();
+            System.out.println("API Response: " + responseBody);
+        } else {
+            System.err.println("API request failed with status code: " + response.getStatusCodeValue());
+        }
+
+    }
+    public void ListDrivers(){
+        RestTemplate restTemplate = new RestTemplate();
+
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(baseUrl + endpoint_get_drivers);
+
+        // Make the GET request and retrieve the response
+        ResponseEntity<Driver []> response = restTemplate.getForEntity(builder.toUriString(), Driver[].class);
+
+        // Handle the response as needed
+        if (response.getStatusCode().is2xxSuccessful()) {
+            Driver[] responseBody = response.getBody();
+            System.out.println("Drivers in the system:");
+            for (Driver driver : responseBody){
+                System.out.println(driver.toString());
+            }
+        } else {
+            System.err.println("API request failed with status code: " + response.getStatusCodeValue());
+        }
+    }
+
+    public String getStringFromUser(String userQuestion){
+
+        String userInput;
+
+        System.out.println(userQuestion);
+        System.out.print(">");
+        userInput = scanner.nextLine();
+        return userInput;
+    }
+
+    public int getIntFromUser(String userQuestion){
+
+        int userInput;
+
+        System.out.println(userQuestion);
+        System.out.print(">");
+        userInput = scanner.nextInt();
+        scanner.nextLine();
+        return userInput;
+    }
+
+    public java.sql.Timestamp formatDate(String dateToFormat){
+
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy'T'HH:mm");
+
+        Date date = null;
+        try {
+            date = dateFormat.parse(dateToFormat);
+        } catch (ParseException e) {
+            throw new RuntimeException(e);
+        }
+
+        return new Timestamp(date.getTime());
+    }
+
 }

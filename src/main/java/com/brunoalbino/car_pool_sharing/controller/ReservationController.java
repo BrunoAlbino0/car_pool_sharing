@@ -9,12 +9,12 @@ import com.brunoalbino.car_pool_sharing.repository.DriverRepository;
 import com.brunoalbino.car_pool_sharing.repository.ReservationRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.sql.Timestamp;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 @RestController
 public class ReservationController {
@@ -45,17 +45,22 @@ public class ReservationController {
     }
 
     @GetMapping("/reservationHistory")
-    public ResponseEntity reservationHistory(@RequestBody Reservation_History_Helper input_data){
+    public ResponseEntity reservationHistory(@RequestParam String StartDate, @RequestParam String EndDate,@RequestParam int car_id){
 
-        /*
-        SELECT reservation.reservation_id, reservation.drop_off_date, reservation.pickup_date, reservation.car_id, car.model,car.license_plate, reservation.driver_id, driver.name FROM reservation
-        LEFT JOIN car ON reservation.car_id = car.car_id
-        LEFT JOIN driver ON reservation.driver_id = driver.driver_id
-        WHERE
-        CAST(reservation.pickup_date AS DATE) <= CURRENT_DATE
-        AND CAST(reservation.drop_off_date AS DATE) >= CURRENT_DATE
-        */
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy'T'HH:mm");
 
-       return ResponseEntity.ok("Recebido como input pickup_date: "+input_data.getPickupDate() + " drop_off_data"+ input_data.getDropOffDate()+ " car id: " + input_data.getCar_Id());
+        java.sql.Timestamp timestamp_startDate = null;
+        java.sql.Timestamp timestamp_endDate = null;
+        Date date = null;
+        try {
+            date = dateFormat.parse(StartDate);
+            timestamp_startDate = new Timestamp(date.getTime());
+            date = dateFormat.parse(EndDate);
+            timestamp_endDate = new Timestamp(date.getTime());
+        } catch (ParseException e) {
+            throw new RuntimeException(e);
+        }
+
+        return ResponseEntity.ok(reservationRepository.findReservationHistory(timestamp_startDate, timestamp_endDate, car_id));
     }
 }
