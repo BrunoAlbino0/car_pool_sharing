@@ -13,6 +13,6 @@ public interface CarRepository extends JpaRepository<Car, Integer> {
     nativeQuery = true)
     List<Car> findAvailableCarsNative();
 
-    @Query("SELECT c from Car c LEFT JOIN Reservation r ON c.car_Id = r.car.car_Id WHERE (c.inactive IS NULL OR c.inactive <> TRUE) AND (r.reservation_Id IS NULL OR (r.pickupDate < :param_pickup_date AND r.dropOffDate < :param_drop_off_date))" )
+    @Query("SELECT c from Car c LEFT JOIN Reservation r ON c.car_Id = r.car.car_Id WHERE (c.inactive IS NULL OR c.inactive <> TRUE) AND (r.reservation_Id IS NULL OR (r.dropOffDate < :param_pickup_date OR r.pickupDate > :param_drop_off_date))" )
     List<Car> findAvailableCars(@Param("param_pickup_date") java.sql.Timestamp pickupDate, @Param("param_drop_off_date") java.sql.Timestamp drop_offDate);
 }

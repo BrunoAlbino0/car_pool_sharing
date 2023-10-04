@@ -29,6 +29,8 @@ public class CarPoolApp {
     private final String endpoint_get_all_cars = "/car";
     private final String endpoint_get_car_details = "/car_details";
     private final String endpoint_remove_car = "/inactivatecar";
+    private final String endpoint_activate_car = "/activatecar";
+
     private final String endpoint_available_cars = "/availablecars";
     private final String endpoint_get_drivers = "/driver";
     private final String endpoint_reserve_car = "/reservation";
@@ -41,7 +43,7 @@ public class CarPoolApp {
     }
 
     public void ShowMenu(){
-        System.out.println("          Car Pool Managmente Tool        \n");
+        System.out.println("\n\n         Car Pool Managmente Tool        \n");
 
         System.out.println("(1) Add a new car");
         System.out.println("(2) List All Cars");
@@ -50,6 +52,7 @@ public class CarPoolApp {
         System.out.println("(5) Reserve Car");
         System.out.println("(6) Consult Reserve History");
         System.out.println("(7) Add a new driver");
+        System.out.println("(8) Activate Car");
         System.out.println("(0) Exit");
     }
 
@@ -57,8 +60,8 @@ public class CarPoolApp {
 
         Scanner inputScanner = new Scanner(System.in);
 
-        ShowMenu();
         while (in_execution) {
+            ShowMenu();
             System.out.print(">");
             int user_input = inputScanner.nextInt();
 
@@ -87,11 +90,14 @@ public class CarPoolApp {
                     ReserveCar();
                     break;
                 case 6: //Consult reserve history
-                    System.out.println("Consult reserve history selected");
+                    //System.out.println("Consult reserve history selected");
                     ReserveHistory();
                     break;
                 case 7: //Add new driver
                     addDriver();
+                    break;
+                case 8: //Activate Car
+                    activateCar();
                     break;
                 default:
                     System.out.println("Invalid option selected");
@@ -232,6 +238,36 @@ public class CarPoolApp {
             System.out.println("Invalid ID!");
         }
     }
+
+    public void activateCar(){
+        ListAllCars();
+
+        System.out.println("ID of car to activate?");
+        System.out.print(">");
+        Scanner scanner = new Scanner(System.in);
+
+        int id = scanner.nextInt();
+
+        if (id > 0 ){
+            RestTemplate restTemplate = new RestTemplate();
+
+            UriComponentsBuilder builder = UriComponentsBuilder
+                    .fromHttpUrl(baseUrl + endpoint_activate_car)
+                    .queryParam("id", id);
+
+            // Make the GET request and retrieve the response
+            ResponseEntity<Car> response = restTemplate.getForEntity(builder.toUriString(), Car.class);
+
+            // Handle the response as needed
+            if (response.getStatusCode().is2xxSuccessful()) {
+                System.out.println("Car Activated");
+            } else {
+                System.err.println("API request failed with status code: " + response.getStatusCodeValue());
+            }
+        }else {
+            System.out.println("Invalid ID!");
+        }
+    }
     public String getDatesFromUser(String userQuestion){
         Scanner scanner = new Scanner(System.in);
         String date;
@@ -306,7 +342,6 @@ public class CarPoolApp {
         } else {
             System.err.println("API request failed with status code: " + response.getStatusCodeValue());
         }
-
     }
 
     public void ReserveHistory(){
@@ -340,7 +375,6 @@ public class CarPoolApp {
         } else {
             System.err.println("API request failed with status code: " + response.getStatusCodeValue());
         }
-
     }
 
     public void ListAllCars(){
@@ -359,7 +393,6 @@ public class CarPoolApp {
             for (Car car : responseBody){
                 System.out.println(car.toString());
             }
-
         } else {
             System.err.println("API request failed with status code: " + response.getStatusCodeValue());
         }
